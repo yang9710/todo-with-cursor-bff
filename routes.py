@@ -14,14 +14,29 @@ logger = logging.getLogger(__name__)
 @api.route('/get-todo', methods=['GET'])
 async def get_all_todos():
     """
-    获取所有待办事项的API端点
+    获取所有待办事项的API端点（支持分页）
+
+    Query Parameters:
+        page (int, optional): 页码，默认为1
+        page_size (int, optional): 每页数量，默认为10
 
     Returns:
-        JSON: 包含所有待办事项的数组
+        JSON: 包含分页数据的对象
     """
     try:
-        todos = await TodoItem.get_all()
-        return jsonify(todos), 200
+        # 获取分页参数
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 10, type=int)
+
+        # 参数验证
+        if page < 1:
+            return jsonify({"error": "页码必须大于0"}), 400
+        if page_size < 1 or page_size > 100:
+            return jsonify({"error": "每页数量必须在1-100之间"}), 400
+
+        # 获取分页数据
+        result = await TodoItem.get_all(page, page_size)
+        return jsonify(result), 200
     except Exception as e:
         logger.error(f"获取待办事项失败: {e}")
         return jsonify({"error": "获取待办事项失败", "message": str(e)}), 500

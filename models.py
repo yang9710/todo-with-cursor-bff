@@ -11,19 +11,52 @@ class TodoItem:
     """Todo项目的数据模型类"""
 
     @staticmethod
-    async def get_all():
+    async def get_all(page=1, page_size=10):
         """
-        获取所有待办事项
+        获取所有待办事项（分页）
+
+        Args:
+            page (int): 页码，从1开始
+            page_size (int): 每页数量，默认10条
 
         Returns:
-            list: 包含所有待办事项的列表
+            dict: {
+                'items': list, # 当前页的待办事项列表
+                'total': int,  # 总记录数
+                'page': int,   # 当前页码
+                'total_pages': int, # 总页数
+                'page_size': int    # 每页数量
+            }
         """
         conn = get_db_connection()
         try:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT * FROM todo_items ORDER BY created_at DESC")
+                # 获取总记录数
+                cursor.execute("SELECT COUNT(*) as total FROM todo_items")
+                total = cursor.fetchone()['total']
+
+                # 计算总页数
+                total_pages = (total + page_size - 1) // page_size
+
+                # 计算偏移量
+                offset = (page - 1) * page_size
+
+                # 获取分页数据
+                cursor.execute("""
+                    SELECT * FROM todo_items
+                    ORDER BY created_at DESC
+                    LIMIT %s OFFSET %s
+                """, (page_size, offset))
+
                 items = cursor.fetchall()
-                return items
+
+                return {
+                    'items': items,
+                    'total': total,
+                    'page': page,
+                    'total_pages': total_pages,
+                    'page_size': page_size
+                }
         except Exception as e:
             logger.error(f"获取待办事项失败: {e}")
             raise
